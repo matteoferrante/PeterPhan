@@ -72,12 +72,15 @@ rep_names={}
 for k,v in rep.items():
     names=[]
     for i in v:
-        name=i[i.rfind("\\") + 1:]
+        name=i[str(i)[:-2].rfind('\\') + 1:]  #[:-2] is to crop \\ at the end
+
         names.append(name)
     rep_names[k]=names
 
 
 files=[]
+
+
 
 for k,v in rep.items():
     files+=v
@@ -95,15 +98,19 @@ t2_landmarks = HistogramStandardization.train(files)
 torch.save(t2_landmarks, t2_landmarks_path)
 landmarks_dict = {'t2': t2_landmarks}
 
-print(f"[Info] Dataset Generation")
+print(f"[INFO] Dataset Generation")
 
-subjects = []
-for image_path in files:
-    subject = tio.Subject(t2=tio.ScalarImage(image_path))
-    subjects.append(subject)
-dataset = tio.SubjectsDataset(subjects)
+datasets={}
+for device in devices:
+    subjects = []
+    for image_path in rep[device]:
+        subject = tio.Subject(t2=tio.ScalarImage(image_path))
+        subjects.append(subject)
+        dataset = tio.SubjectsDataset(subjects)
+    datasets[device]=dataset
 
-print(f"[INFO] Performing transormations")
+
+print(f"[INFO] Performing transformations")
 
 rescale = tio.RescaleIntensity(out_min_max=(0, 1000))
 histogram_transform = tio.HistogramStandardization(landmarks_dict)
@@ -115,17 +122,62 @@ if args.z_norm is not None:
 else:
     transform = tio.Compose([rescale, histogram_transform])
 
-transformed_imgs=[transform(sample) for sample in dataset]
+###
+
+transformed_datasets={}
+
+for device,dataset in tqdm.tqdm(datasets.items()):
+    transformed_imgs = [transform(sample) for sample in dataset]
+    transformed_datasets[device]=transformed_imgs
 
 print(f"[INFO] Saving outputs to {target_path}")
 
 os.makedirs(opj(target_path,"output"),exist_ok=True)
 
-j=0
-for k,v in rep_names.items():
-    target_dev=opj(target_path,"output",k)
-    os.makedirs(target_dev,exist_ok=True)
-    for repetition in v:
-        transformed_imgs[j].save(opj(target_dev,repetition[:-1]+".nii.gz"))
-        j+=1
+
+for device,transformed_imgs in transformed_datasets.items():
+    os.makedirs(opj(target_path,"output",device),exist_ok=True)
+    for (i,t_img) in enumerate(transformed_imgs):
+
+        name=rep_names[device][i][:-1]+".nii.gz"
+        filename=opj(target_path,"output",device,name)
+        print(filename)
+        t_img.t2.save(filename)
+
+
+print(f"[INFO] All files were saved to {target_path}")
+
+info={}
+for device in devices:
+    info[device]= tuple(np.random.randint(256, size=3)/256)
+
+if args.plot:
+    print(f"[INFO] Computing before histogram kernel densities. This may require some time.")
+    fig, axs = plt.subplots(1,2, figsize=(10, 5))
+
+    ax1,ax2=axs
+    for device,dataset in datasets.items():
+        color = info[device]
+        label=device
+        for sample in dataset:
+            img=sample.t2.data
+            plot_histogram(ax1, img.flatten(), color=color)
+
+    ax1.legend()
+    ax1.set_title("Before Standardization")
+
+    for device, dataset in transformed_datasets.items():
+        color = info[device]
+        label = device
+        for sample in dataset:
+            img = sample.t2.data.numpy()
+            plot_histogram(ax2, img.flatten(), color=color)
+
+    ax2.legend()
+    ax2.set_title("After Standardization")
+
+    filename=opj(target_path,"plot.png")
+    plt.savefig(filename)
+    plt.show()
+
 
