@@ -1,0 +1,9 @@
+matplotlib==3.4.3
+torch==1.9.1
+numpy==1.19.5
+scikit_image==0.18.3
+scipy==1.7.1
+tqdm==4.62.2
+torchio==0.18.57
+SimpleITK==2.1.1
+skimage==0.0
