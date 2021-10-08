@@ -15,4 +15,5 @@ INPUT_DIR should be a directory with the following structure:
     ..
 ...
 
+The -m (--mask) flag is useful if you want to compute the mask of the phantom and train the histogram standardizer just on masked imgs.
 You could also use the --plot flag and --z_norm to specify if you want the before/after histograms of the intensities and wheter you want to apply the z_norm (default: true).
