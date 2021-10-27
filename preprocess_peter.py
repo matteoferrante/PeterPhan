@@ -253,9 +253,13 @@ print(f"[INFO] Saving outputs to {target_path}")
 os.makedirs(opj(target_path,"output"),exist_ok=True)
 
 for dev in tqdm.tqdm(log.keys()):
+
+    os.makedirs(opj(target_path, "output", dev), exist_ok=True)
+
     for (i,data) in enumerate(log[dev]):
         name = rep_names[dev][i][:-1] + ".nii.gz"
-        filename=opj(target_path,"output",device,name)
+        filename=opj(target_path,"output",dev,name)
+
         t_img=log[dev][i]["transormed"]
         t_img.t2.save(filename)
 #        transformed_img = transform(data["subject"])
